@@ -1,0 +1,398 @@
+---
+title: "CNB and SIPS Plots"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 14
+    fig_height: 8
+knit: (function(input, encoding) {
+    rmarkdown::render(
+      input,
+      encoding = encoding,
+      envir = globalenv(),
+      clean = TRUE,
+      output_file = paste0("/Users/hillmann/Projects/Evolution/Plots:Results/SIPS_CNB_Plots_",Sys.Date(),".pdf"))})
+---
+
+```{r,include = F}
+# Read in data and packages
+library(tidyverse)
+library(ggpubr)
+demo <- read_csv("~/Projects/Evolution/Data/bblMount/demographics.csv")
+diagnosis <- read_csv("~/Projects/Evolution/Data/bblMount/diagnosis.csv")
+imglook <- read_csv("~/Projects/Evolution/Data/bblMount/imglook.csv")
+sips_long <- read_csv("~/Projects/Evolution/Data/Clinical/sips_long_2022_04_15.csv")
+CNB <- read_csv("~/Projects/Evolution/Data/CNB/cnb_merged_webcnp_surveys_allbblprjcts_longform20220406.csv")
+codebook <- read_csv("~/Projects/CNB_Longitudinal/Data/bbl_cross_battery_codebook.csv")
+GO1_diag <- read_csv("~/Projects/ER40/Data/n9498_diagnosis_dxpmr7_20170509.csv")
+```
+
+
+```{r,include = F}
+# Select necessary columns for CNB
+CNB_trim <- CNB %>% 
+  select(test_sessions.bblid.clean,test_sessions_v.age,test_sessions_v.gender,test_sessions_v.dotest,mpraxis_rtcr,pcet_acc2,pcet_cat,pcet_rtcr,cpt_ptp,cpt_tprt,
+         lnb_mcr,lnb_mrtc,er40_cr,er40_rtcr,pvrt_cr,pvrt_rtcr,pmat_pc,pmat_rtcr,volt_cr,volt_rtcr,cpf_cr,cpf_rtcr,medf_pc,medf_rtcr,adt_pc,adt_rtcr,plot_pc,plot_rtcr,cpw_cr,cpw_rtcr,
+          tap_tot,dscor,dscorrt,gng_cr,gng_rtcr,aim_tot,aim_totrt) %>% 
+  rename(bblid = test_sessions.bblid.clean) %>% 
+  filter(!if_all(.cols = mpraxis_rtcr:last_col(),~ is.na(.))) %>% 
+  distinct(.keep_all = T)
+```
+
+```{r,include = F}
+# Use codebook to map columns to helpful names
+Test_map <- data.frame(col_name = c("mpraxis_rtcr","pcet_acc2","pcet_cat","pcet_rtcr","cpt_ptp","cpt_tprt","lnb_mcr","lnb_mrtc","er40_cr","er40_rtcr","pvrt_cr","pvrt_rtcr","pmat_pc","pmat_rtcr","volt_cr","volt_rtcr","cpf_cr","cpf_rtcr","medf_pc","medf_rtcr","adt_pc","adt_rtcr","plot_pc",'plot_rtcr',"cpw_cr","cpw_rtcr","tap_tot","dscor","dscorrt","gng_cr","gng_rtcr","aim_tot","aim_totrt"),test_name = c("Motor Praxis Test","Penn Conditional Exclusion Test","Penn Conditional Exclusion Test","Penn Conditional Exclusion Test","Continuous Performance Test","Continuous Performance Test","Letter-N-Back Test","Letter-N-Back Test","Emotion Recognition Test","Emotion Recognition Test","Logical Reasoning Test","Logical Reasoning Test","Matrix Analysis Test","Matrix Analysis Test","Visual Object Learning Test","Visual Object Learning Test","Face Memory Test","Face Memory Test","Measured Emotion Differentiation Test","Measured Emotion Differentiation Test","Age Differentiation Test","Age Differentiation Test","Line Orientation Test","Line Orientation Test","Word Memory Test","Word Memory Test","Computerized Finger Tapping Test","Digit Symbol Search","Digit Symbol Search","Go-No-Go Test","Go-No-Go Test","Abstraction, Inhibition, and Working Memory Test","Abstraction, Inhibition, and Working Memory Test"),metric = c("Median Reaction Time \n Correct Response (ms)","Accuracy","Categories Achieved","Median Reaction Time \n Correct Response (ms)","True Positive","Median Reaction Time True Positives","True Positive Responses \n (1-back and 2-back)","Median Reaction Time Positive Responses \n (1-back and 2-back)","Total Correct Responses","Median Reaction Time \n Correct Response (ms)","Total Correct Responses","Median Reaction Time \n Correct Response (ms)","% Correct","Median Reaction Time \n Correct Responses (ms)","Total Correct Responses","Median Reaction Time \n Correct Responses (ms)","Total Correct Responses","Median Reaction Time \n Correct Responses (ms)","% Correct","Median Reaction Time \n Correct Response (ms)","% Correct","Median Reaction Time \n Correct Response (ms)","% Correct","Median Reaction Time \n Correct Response (ms)","Total Correct Responses","Median Reaction Time \n Correct Response (ms)","Average Taps (between hands)","Total Correct Responses","Median Reaction Time \n Correct Response (ms)","Total Correct Responses","Median Reaction Time \n Correct Response (ms)","Total Correct Responses","Median Reaction Time \n Correct Responses (ms)"))
+```
+
+```{r,include = F}
+# Clean data 
+demo <- demo %>% 
+  select(-sid.y,-protocol.y) %>% 
+  rename(sid = sid.x,protocol = protocol.x) 
+
+names(sips_long) <- tolower(names(sips_long))
+sips_long$type2<-sips_long$type
+sips_long <- sips_long %>% 
+  mutate(type2 = str_replace_all(type2,pattern = "^proband$",replacement = "Proband")) %>% 
+  mutate(type2 = str_replace_all(type2,pattern = "^collateral$",replacement = "Collateral")) %>% 
+  mutate(type2 = str_replace_all(type2,pattern = "^both$",replacement = "Both"))
+sips_long$type2[sips_long$type2=="AP"|sips_long$type2=="IP"|sips_long$type2=="FP"|sips_long$type2=="Intake Proband"|sips_long$type2=="P"|sips_long$type2=="MP"] <-"Proband"
+sips_long$type2[sips_long$type2=="FC"|sips_long$type2=="GO2MI_2"|sips_long$type2=="GO2YPI_2"|sips_long$type2=="IC"|sips_long$type2=="MI"|sips_long$type2=="YPI"]<-"Collateral"
+sips_long$type2[sips_long$type2=="FPC"|sips_long$type2=="IPC"]<-"Combined"
+sips_long$type2<-factor(sips_long$type2)
+```
+
+```{r,include = F}
+# Create Longitudinal Data sets for Evolution
+Evol_bblids <- unique(demo$bblid)
+
+sips_long_evol <- sips_long %>% 
+  filter(bblid %in% Evol_bblids) %>% 
+  left_join(GO1_diag) %>% 
+  left_join(demo[,c("bblid","dobirth")]) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "JAN",replacement = "01"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "FEB",replacement = "02"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "MAR",replacement = "03"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "APR",replacement = "04"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "MAY",replacement = "05"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "JUN",replacement = "06"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "JUL",replacement = "07"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "AUG",replacement = "08"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "SEP",replacement = "09"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "OCT",replacement = "10"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "NOV",replacement = "11"))) %>% 
+  mutate(across(.cols = c(dobirth,dosips),.fns = ~ str_replace_all(.x,pattern = "DEC",replacement = "12"))) %>% 
+  mutate(year_birth = str_replace_all(dobirth,pattern = "[[:digit:]][[:digit:]]-[[:digit:]][[:digit:]]-","")) %>% 
+  mutate(year_birth = ifelse(as.numeric(year_birth) <= 22,paste0("20",year_birth),paste0("19",year_birth))) %>% 
+  mutate(dobirth = str_remove_all(dobirth,pattern = "[[:digit:]][[:digit:]]$")) %>% 
+  mutate(dobirth = paste0(dobirth,year_birth)) %>% 
+  mutate(year_sips = str_replace_all(dosips,pattern = "[[:digit:]][[:digit:]]-[[:digit:]][[:digit:]]-","")) %>% 
+  mutate(year_sips = ifelse(as.numeric(year_sips) <= 22,paste0("20",year_sips),paste0("19",year_sips))) %>% 
+  mutate(dosips = str_remove_all(dosips,pattern = "[[:digit:]][[:digit:]]$")) %>% 
+  mutate(dosips = paste0(dosips,year_sips)) %>% 
+  mutate(across(.cols = c(dosips,dobirth),.fns = ~ as.Date(.x,format = "%d-%m-%Y"))) %>% 
+  mutate(age_at_sips = as.numeric(dosips - dobirth)/365.25) 
+
+CNB_long_evol <- CNB_trim %>% 
+  filter(bblid %in% Evol_bblids) %>% 
+  left_join(GO1_diag) 
+```
+
+```{r,include = F}
+#Demonstrate problem with multiple submissions on a specific day
+# sips_long_evol %>%
+#   group_by(bblid) %>%
+#   summarize(n = n()) %>%
+#   with(table(n))
+# 
+# CNB_long_evol %>%
+#   group_by(bblid) %>%
+#   summarize(n = n()) %>%
+#   with(table(n))
+# 
+# sips_long_evol %>%
+#   group_by(bblid,dosips) %>%
+#   filter(n() != 1) %>%
+#   ungroup() %>%
+#   arrange(bblid,dosips) %>%
+#   relocate(type2) %>% 
+#   View()
+# 
+# CNB_long_evol %>%
+#   group_by(bblid,test_sessions_v.dotest) %>%
+#   filter(n() != 1) %>%
+#   ungroup() %>%
+#   arrange(bblid,test_sessions_v.dotest) %>%
+#   View()
+```
+
+```{r,include = F,warning=F,comment=F}
+sips_long_evol <- sips_long_evol %>% 
+  mutate(type2 = factor(type2,levels = c("Combined","Proband","Collateral"))) %>% 
+  group_by(bblid,dosips) %>% 
+  arrange(type2) %>% 
+  slice(n = 1) %>% 
+  ungroup()
+```
+
+```{r,include = F}
+CNB_long_evol_no_repeat <- CNB_long_evol %>% 
+  group_by(bblid,test_sessions_v.dotest) %>% 
+  filter(n() == 1) %>% 
+  ungroup()
+
+CNB_long_evol_repeat <- CNB_long_evol %>% 
+  group_by(bblid,test_sessions_v.dotest) %>% 
+  arrange(bblid,test_sessions_v.dotest) %>% 
+  filter(n() != 1) %>% 
+  mutate(across(.cols = everything(),.fns = ~ ifelse(is.na(.x[1]),.x[2],.x[1]))) %>% 
+  slice(n = 1) %>% 
+  ungroup()
+
+
+CNB_long_evol <- rbind(CNB_long_evol_no_repeat,CNB_long_evol_repeat)
+```
+
+```{r,include = F}
+# Create SIPS plots 
+sips_long_z <- sips_long_evol %>% 
+  mutate(across(.cols = p1:g4,~ ifelse(.x == 9,NA,.x))) %>% 
+  mutate(across(.cols = p1:g4,~ as.numeric(scale(.x)))) %>% 
+  rowwise() %>% 
+  mutate(p_avg = mean(c(p1,p2,p3,p4,p5),na.rm = T)) %>% 
+  mutate(n_avg = mean(c(n1,n2,n3,n4,n5,n6),na.rm = T)) %>% 
+  mutate(d_avg = mean(c(d1,d2,d3,d4),na.rm = T)) %>% 
+  mutate(g_avg = mean(c(g1,g2,g3,g4),na.rm = T)) %>% 
+  ungroup() 
+
+theme_set(theme_minimal())
+theme_update(text = element_text(size = 14))
+
+p_plot <- sips_long_z %>% 
+  ggplot(aes(x = age_at_sips,y = p_avg,color = goassessDxpmr7)) + geom_point(size = .85) + geom_smooth(method = "gam",formula = y ~ s(x,bs = "tp")) + geom_line(aes(group = bblid),alpha = .3) + labs(x = "Age",y = "Positive Symptoms (Z-scored)",color = "Diagnosis") + scale_color_brewer(palette = "Dark2")
+
+n_plot <- sips_long_z %>% 
+  ggplot(aes(x = age_at_sips,y = n_avg,color = goassessDxpmr7)) + geom_point(size = .85) + geom_smooth(method = "gam",formula = y ~ s(x,bs = "tp")) + geom_line(aes(group = bblid),alpha = .3) + labs(x = "Age",y = "Negative Symptoms (Z-scored)",color = "Diagnosis") + scale_color_brewer(palette = "Dark2")
+
+d_plot <- sips_long_z %>% 
+  ggplot(aes(x = age_at_sips,y = d_avg,color = goassessDxpmr7)) + geom_point(size = .85) + geom_smooth(method = "gam",formula = y ~ s(x,bs = "tp")) + geom_line(aes(group = bblid),alpha = .3) + labs(x = "Age",y = "Disorganized Symptoms (Z-scored)",color = "Diagnosis") + scale_color_brewer(palette = "Dark2")
+
+g_plot <- sips_long_z %>% 
+  ggplot(aes(x = age_at_sips,y = g_avg,color = goassessDxpmr7)) + geom_point(size = .85) + geom_smooth(method = 'gam',formula = y ~ s(x,bs = "tp")) + geom_line(aes(group = bblid),alpha = .3) + labs(x = "Age",y = "General Symptoms (Z-scored)",color = "Diagnosis") + scale_color_brewer(palette = "Dark2")
+
+all_sym_plots <- annotate_figure(ggarrange(p_plot,n_plot,d_plot,g_plot,common.legend = T,legend = "bottom"),fig.lab = "",fig.lab.size = 20,fig.lab.face = "bold")
+
+gaf_plot <- sips_long_z %>% 
+  filter(gaf_c > 0) %>% 
+  ggplot(aes(x = age_at_sips,y = gaf_c,color = goassessDxpmr7)) + geom_point(size = .85) + geom_smooth(method = "gam",formula = y ~ s(x,bs = "tp")) + geom_line(aes(group = bblid),alpha = .3) + labs(x = "Age",y = "Current Functioning",title = "",color = "Diagnosis") + scale_color_brewer(palette = "Dark2")
+```
+
+```{r,include = F}
+# CNB Plots
+response_cols <- CNB_long_evol %>% 
+  select(-bblid,-test_sessions_v.age,-test_sessions_v.gender,-goassessDxpmr7,-test_sessions_v.dotest) %>% 
+  relocate(adt_pc,adt_rtcr,aim_tot,aim_totrt,cpf_cr,cpf_rtcr,cpt_ptp,cpt_tprt,cpw_cr,cpw_rtcr,dscor,dscorrt,er40_cr,er40_rtcr,gng_cr,gng_rtcr,lnb_mcr,lnb_mrtc,medf_pc,medf_rtcr,mpraxis_rtcr,pcet_acc2,pcet_cat,pcet_rtcr,plot_pc,plot_rtcr,pmat_pc,pmat_rtcr,pvrt_cr,pvrt_rtcr,tap_tot,volt_cr,volt_rtcr) %>% 
+  colnames()
+CNB_evol_plots <- list()
+Plot_sep_PS <- list()
+cntr <- 1
+theme_set(theme_minimal())
+theme_update(text = element_text(size = 24),legend.position = "bottom")
+
+for(test in response_cols){
+  test_quo <- quo(!!sym(test))
+
+  Plot_title <- Test_map %>% 
+    filter(col_name == test) %>% 
+    pull(test_name)
+  
+  ylabel <- Test_map %>% 
+    filter(col_name == test) %>% 
+    pull(metric)
+  
+  # Cap values at 6sd above the norm
+  CNB_long_evol[[test]] <- ifelse(CNB_long_evol[[test]] > mean(CNB_long_evol[[test]],na.rm = T) + 6*sd(CNB_long_evol[[test]],na.rm = T),mean(CNB_long_evol[[test]],na.rm = T) + 6*sd(CNB_long_evol[[test]],na.rm = T),CNB_long_evol[[test]])
+  
+  # Find N for each test
+  
+  PS_N_timepoints <- CNB_long_evol %>% 
+    filter(!is.na(!!test_quo),!is.na(goassessDxpmr7)) %>% 
+    nrow()
+  
+  PS_N_subj <-  CNB_long_evol %>% 
+    filter(!is.na(!!test_quo),!is.na(goassessDxpmr7)) %>% 
+    with(length(unique(bblid)))
+  
+  df_for_plot <- CNB_long_evol %>% 
+    rename(Sex = test_sessions_v.gender) %>% 
+    rename(Age = test_sessions_v.age) %>% 
+    rename(PS = goassessDxpmr7) %>% 
+    mutate(Sex = case_when(Sex == "M" ~ "Male",Sex == "F" ~ "Female",TRUE ~ NA_character_)) %>% 
+    mutate(PS = factor(PS,levels = c("TD","OP","PS"))) %>% 
+    filter(!is.na(!!test_quo))
+  
+  Plot_sep_PS[[cntr]] <- df_for_plot %>% 
+    ggplot(aes(x = Age,y = !!test_quo,color = PS,group = bblid)) + geom_smooth(aes(x = Age,y = !!test_quo,color = PS,group = PS),method = 'gam',formula = y ~ s(x)) + geom_point(size = .75) + geom_line(alpha = .25) + labs(x = "Age",y = ylabel,title = "",caption = paste0("N = ",PS_N_subj,", Timepoints = ",PS_N_timepoints),color = "") + scale_color_brewer(palette = "Dark2") 
+  
+  cntr <- cntr + 1
+} 
+```
+
+# SIPS Plots 
+
+## Positive Symptoms
+```{r,echo = F,warning = F}
+p_plot
+```
+
+## Negative Symptoms
+
+```{r,echo = F,warning = F}
+n_plot
+```
+
+## Disorganized Symptoms
+
+```{r,echo = F,warning = F}
+d_plot
+```
+
+## General Symptoms
+
+```{r,echo = F,warning = F}
+g_plot
+```
+
+## All Symptoms 
+
+```{r,echo = F,warning = F}
+all_sym_plots
+```
+
+
+## Global Assessment of Functioning
+
+```{r,echo = F,warning = F}
+gaf_plot
+```
+
+# CNB Plots 
+
+## Age Differentiation Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[1]]
+Plot_sep_PS[[2]]
+```
+
+## Abstraction, Inhibition, and Working Memory Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[3]]
+Plot_sep_PS[[4]]
+```
+
+## Face Memory Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[5]]
+Plot_sep_PS[[6]]
+```
+
+## Continuous Performance Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[7]]
+Plot_sep_PS[[8]]
+```
+
+## Word Memory Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[9]]
+Plot_sep_PS[[10]]
+```
+
+## Digit Symbol Search Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[11]]
+Plot_sep_PS[[12]]
+```
+
+## Emotion Recognition Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[13]]
+Plot_sep_PS[[14]]
+```
+
+## Go-No-Go Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[15]]
+Plot_sep_PS[[16]]
+```
+
+## Letter-N-Back Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[17]]
+Plot_sep_PS[[18]]
+```
+
+## Measured Emotion Differentiation Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[19]]
+Plot_sep_PS[[20]]
+```
+
+## Motor Praxis Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[21]]
+```
+
+## Conditional Exclusion Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[22]]
+Plot_sep_PS[[23]]
+Plot_sep_PS[[24]]
+```
+
+## Line Orientation Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[25]]
+Plot_sep_PS[[26]]
+```
+
+## Matrix Analysis Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[27]]
+Plot_sep_PS[[28]]
+```
+
+## Verbal Reasoning Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[29]]
+Plot_sep_PS[[30]]
+```
+
+## Computerized Finger Tapping Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[31]]
+```
+
+## Visual Object Learning Test
+
+```{r,echo = F,warning = F}
+Plot_sep_PS[[32]]
+Plot_sep_PS[[33]]
+```
