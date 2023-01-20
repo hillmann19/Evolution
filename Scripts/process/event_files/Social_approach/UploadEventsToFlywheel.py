@@ -12,7 +12,9 @@ from pathvalidate import is_valid_filename
 from pathlib import Path
 from fw_heudiconv.cli.export import get_nested
 
-fw = flywheel.Client()
+with open('/Users/hillmann/Projects/Evolution/Scripts/process/flywheel/flywheel_api_key.txt', 'r') as f:
+	API_KEY = f.read().strip()
+fw = flywheel.Client(API_KEY)
 project = fw.projects.find_first('label=Evolution_833922')
 
 def none_replace(str_input):
@@ -139,7 +141,7 @@ for ses in sessions:
     subj_label = ses.subject.label
     ses_label = ses.label
     try:
-        sa_df = pd.read_csv(f"/home/hillmann/Projects/Evolution/Data/AllEventsFilesSA/{subj_label}_{ses_label}_SAevents.csv")
+        sa_df = pd.read_csv(f"~/Projects/Evolution/Data/AllEventsFilesSA/{subj_label}_{ses_label}_SAevents.csv")
     except:
         print(f"Subject: {subj_label}, Session: {ses_label} not found")
         continue
@@ -154,5 +156,3 @@ for ses in sessions:
                     folders=['anat', 'dwi', 'func', 'fmap', 'perf'],
                     dry_run= True
                         )
-for ses in sessions:
-    print(ses)

@@ -1,6 +1,6 @@
-log_dir="/Users/hillmann/Projects/Evolution/Data/Log_Files_Evolution"
+log_dir="/Users/hillmann/Projects/Evolution/Data/Social_approach/Log_Files_Evolution"
 subjects=`ls ${log_dir}`
-output_dir='/Users/hillmann/Projects/Evolution/Data/AllLogFilesSA'
+output_dir='/Users/hillmann/Projects/Evolution/Data/Social_approach/AllLogFilesSA'
 mkdir -p ${output_dir}
 
 for subj in ${subjects};do 

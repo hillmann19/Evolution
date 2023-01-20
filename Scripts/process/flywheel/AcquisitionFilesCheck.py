@@ -3,13 +3,15 @@ from os.path import basename
 import flywheel
 import os
 
-fw = flywheel.Client()
+with open('/Users/hillmann/Projects/Evolution/Scripts/process/flywheel/flywheel_api_key.txt', 'r') as f:
+    API_KEY = f.read().strip()
+
+fw = flywheel.Client(API_KEY)
 output_dir = '/Users/hillmann/Projects/Evolution/Data/ASL_Dicom_Files'
 
 project = fw.projects.find_first('label=Evolution_833922')
 
 for sess in project.sessions():
-    if sess['subject']['label'] ==  '118546':
         for acq in sess.acquisitions():
             if 'pcasl' in acq['label']:
                 for files in acq['files']:
@@ -44,5 +46,5 @@ for sess in project.sessions():
                         with ZipFile(os.path.join(work_dir,ZipfileName), 'w') as zipObj:
                             for i in range(len(filenames)):
                                 zipObj.write(filenames[i],arcnames[i]) 
-                        #acq.upload_file(os.path.join(work_dir,ZipfileName))
+                        acq.upload_file(os.path.join(work_dir,ZipfileName))
                             

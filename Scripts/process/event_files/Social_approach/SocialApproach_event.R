@@ -1,26 +1,30 @@
 library(tidyverse)
-inputDir <- "/Users/hillmann/Projects/Evolution/Data/AllLogFilesSA"
+inputDir <- "/Users/hillmann/Projects/Evolution/Data/Social_approach/AllLogFilesSA"
 fileList = list.files(inputDir)
 
 # A helper function which finds the onset, duration, and type of stimulus given a data frame with the log for a particular trial
 parseLog <- function(df){
-  onset <- df %>% 
-    filter(str_detect(Code,pattern = "Video")) %>% 
-    pull(Time)
-
-  duration <- 3
-  
-  video.type <- df %>% 
-    filter(str_detect(Code,pattern = "vidname")) %>% 
-    mutate(type = ifelse(str_detect(Code,"Fractal"),"Fractal","Face")) %>% 
-    pull(type)
-  
-  choice.type <- ifelse(any(str_detect(df$Code, pattern = "Left_prompt")),"Forced","Choice") 
-  
-  Type <- paste(choice.type,video.type,sep = "-")
-  
-  events.df <- data.frame(onset = onset, duration = duration,trial_type = Type)
-  return(events.df)
+  if(any(df$Event.Type == "Quit")){
+    return()
+  } else{
+    onset <- df %>% 
+      filter(str_detect(Code,pattern = "Video")) %>% 
+      pull(Time)
+    
+    duration <- 3
+    
+    video.type <- df %>% 
+      filter(str_detect(Code,pattern = "vidname")) %>% 
+      mutate(type = ifelse(str_detect(Code,"Fractal"),"Fractal","Face")) %>% 
+      pull(type)
+    
+    choice.type <- ifelse(any(str_detect(df$Code, pattern = "Left_prompt")),"Forced","Choice") 
+    
+    Type <- paste(choice.type,video.type,sep = "-")
+    
+    events.df <- data.frame(onset = onset, duration = duration,trial_type = Type)
+    return(events.df)
+  }
 }
 
 buildEventsFile <- function(filename){
@@ -29,12 +33,19 @@ buildEventsFile <- function(filename){
   SA.log <- read_delim(paste(inputDir,filename,sep = "/"), 
                        delim = "\t", escape_double = FALSE, 
                        trim_ws = TRUE, skip = 2) %>% 
-    rename(Event.Type = `Event Type`) %>% 
+    rename(Event.Type = `Event Type`) 
+  
+tryCatch({SA.log <- SA.log %>% 
     select(-Trial) %>% 
     mutate(Time = Time/10000) %>% 
-    mutate(Code = ifelse(is.na(Code),"0",Code))
+    mutate(Code = ifelse(is.na(Code),"0",Code))},error = function(e) {SA.log <<- SA.log %>% 
+      select(-Pulse) %>% 
+      mutate(Time = Time/10000) %>% 
+      mutate(Code = ifelse(is.na(Code),"0",Code))})
   
-  
+if(all(SA.log$Code != "first_trigger")){
+  return()
+} else{
   # Find start of the session and only keep time points after the start
   BeginTask.row <- with(SA.log,which(Code == "first_trigger"))
   SA.log <- SA.log %>% 
@@ -63,20 +74,27 @@ buildEventsFile <- function(filename){
     group_split(Trial)
   
   # Map parseLog to every element in SA.log.trial, creating a dataset with the onset, duration, and type of every trial stimulus
-  SA.events <- map_dfr(SA.log.trial,parseLog) %>% 
+  SA.events <- map_dfr(SA.log.trial,parseLog) %>%
     arrange(onset)
   
-  
   return(SA.events)
+}
 }
 
 # Fill in the outputDir and subject.id variables in order to run this script for a directory which contains the log files of every subject in the study
 events.files <- map(fileList,buildEventsFile)
-outputDir <- "/Users/hillmann/Projects/Evolution/Data/AllEventsFilesSA/"
+# for(i in 1:length(fileList)){
+#   print(i)
+#   buildEventsFile(fileList[i])
+# }
+
+outputDir <- "/Users/hillmann/Projects/Evolution/Data/Social_approach/AllEventsFilesSA/"
 subject.id <- str_replace_all(fileList,pattern = "-.*",replacement = "")
 subject.id <- str_replace_all(subject.id,pattern = "([:digit:]*)(_+)([:digit:]*)(.*)",replacement = "\\1_\\3")
 for(i in 1:length(events.files)){
-  write_csv(events.files[[i]],file = paste0(outputDir,paste0(subject.id[i],"_SAevents.csv")))
+  if(is.data.frame(events.files[[i]])){
+    write_csv(events.files[[i]],file = paste0(outputDir,paste0(subject.id[i],"_SAevents.csv")))
+  }
 }
 
 
