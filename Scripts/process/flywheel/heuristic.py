@@ -5,7 +5,6 @@ Updated: 05/10/2021
 '''
 
 import os
-
 ##################### Create keys for each acquisition type ####################
 
 def create_key(template, outtype=('nii.gz',), annotation_classes=None):
@@ -77,7 +76,7 @@ def infotodict(seqinfo):
     import pandas as pd
 
     # Curation Round 1 cutoff date -- not yet curating sessions added after this date.
-    DATE_CUTOFF = pd.Timestamp('2022-03-01')
+    DATE_CUTOFF = pd.Timestamp('2022-07-01')
     
     # Info dictionary to map series_id's to correct create_key key
     info = {
@@ -109,7 +108,7 @@ def infotodict(seqinfo):
             print(f'Skipping pilot subject: {s.patient_id}')
             continue
         
-        # NOTE: For Curation Round 1, only process sessions that occurred before DATE_CUTOFF (2021-04-23)
+        # NOTE: For Curation Round 1, only process sessions that occurred before DATE_CUTOFF (2022-03-01)
         timestamp = pd.Timestamp(s.date)
         if timestamp > DATE_CUTOFF:
             continue
@@ -210,6 +209,7 @@ IntendedFor = {
 
 # TODO: Need to get events tsv files
 # TODO: Need to finalize aslcontext number/order of volumes
+
 def AttachToSession():
     NUM_VOLUMES=7
     data = ['control', 'label'] * NUM_VOLUMES
@@ -225,7 +225,7 @@ def AttachToSession():
 
     import pandas as pd 
 
-    er40_df = pd.read_csv("info/task-er40_events.tsv", sep='\t') 
+    er40_df = pd.read_csv("/home/hillmann/Projects/Evolution/Data/EventsFilesER40/idemo_events.tsv", sep='\t') 
 
     # define er40 events.tsv file
     er40_events = {
@@ -233,6 +233,7 @@ def AttachToSession():
         'data': er40_df.to_csv(index=False, sep='\t'),
         'type': 'text/tab-separated-values'
     }
+
     
     return [asl_context,  er40_events]
 
@@ -268,8 +269,8 @@ def gather_session_indices():
 
     return session_labels
 
-session_labels = gather_session_indices()
+#session_labels = gather_session_indices()
 
 # Replace session label with <proj_name><session_idx>
-def ReplaceSession(ses_label):
-    return str(session_labels[ses_label])
+#def ReplaceSession(ses_label):
+#    return str(session_labels[ses_label])
