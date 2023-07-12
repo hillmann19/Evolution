@@ -10,10 +10,11 @@ Project which is examining genetic and environmental factors which affect the de
 a.	There are two T2w images – one original and one norm filtered – that are being named the same
 b.	Some sessions have multiple ER-40 sessions which appear to be duplicates
 c.	The BIDS curation script will process both ASL scans (although we only want the ones with the prefix Removed2ndScan)
-6.	Additionally, there are some sessions which appear to be duplicates of one another which will give problems when trying to export the BIDS data from Flywheel 
-7.	To solve the problems explained in steps 5 & 6, attach the suffix ‘_incomplete’ to any acquisition which you want to skip over during BIDS curation, and then run the script Remove_BIDS_duplicates.py which will move duplicated data to the nonBids folder
-8.	Export BIDS curated data to PMACS
-9.	If any subjects in the bids_directory have names like “{subject}_{session}” and only have context files, remove the folder. The extra context files were named incorrectly and attached to the session at a previous point, so they are now superfluous
-10.	If processing the data through fMRIPrep, you can see an example script at /project/ExtraLong/scripts/datafreeze-2021/process/fMRIPrep/ on PMACS and information about how to run fMRIprep at https://fmriprep.org/en/22.1.1/index.html
+6.	Additionally, there are some sessions which appear to be duplicates of one another which will give problems when trying to export the BIDS data from Flywheel
+7.	Run the script Find_duplicates.py in order to find out all the duplicated BIDS filenames
+8.	To solve the problems explained in steps 5-7, attach the suffix ‘_incomplete’ to any acquisition which you want to skip over during BIDS curation, and then run the script Remove_BIDS_duplicates.py which will move duplicated data to the nonBids folder
+9.	Export BIDS curated data to PMACS
+10.	If any subjects in the bids_directory have names like “{subject}_{session}” and only have context files, remove the folder. The extra context files were named incorrectly and attached to the session at a previous point, so they are now superfluous
+11.	If processing the data through fMRIPrep, you can see an example script at /project/ExtraLong/scripts/datafreeze-2021/process/fMRIPrep/ on PMACS and information about how to run fMRIprep at https://fmriprep.org/en/22.1.1/index.html
 
 
